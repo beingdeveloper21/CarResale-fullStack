@@ -1,0 +1,60 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "1 Train ML model",
+      "type": "shell",
+      "command": "python ml_backend/train_model.py --rows 60000",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "2 Start ML backend",
+      "type": "shell",
+      "command": "python -m uvicorn ml_backend.app:app --host 127.0.0.1 --port 8000",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "3 Start Express backend",
+      "type": "shell",
+      "command": "$env:PORT='5000'; $env:ML_API_URL='http://127.0.0.1:8000'; npm run start",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "4 Start React client",
+      "type": "shell",
+      "command": "$env:VITE_BASE_URL='http://localhost:5000'; npm run dev -- --host 127.0.0.1 --port 5173",
+      "options": {
+        "cwd": "${workspaceFolder}/client"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "new",
+        "reveal": "always"
+      }
+    }
+  ]
+}
