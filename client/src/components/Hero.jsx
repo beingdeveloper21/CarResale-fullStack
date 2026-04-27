@@ -121,7 +121,7 @@ const Hero = () => {
 
       </form>
 
-      <img src={assets.main_car} alt="car" />
+      <img src={assets.mainn_car} alt="car" className="w-1/2" />
 
     </motion.div>
   )
