@@ -12,7 +12,7 @@ const getMlApiUrl = () => {
     return `http://${configuredUrl}`;
 };
 
-export const getMlHealth = async (req, res)=>{
+export const getMlHealth = async (req, res) => {
     try {
         const response = await fetch(`${getMlApiUrl()}/health`);
         const data = await response.json();
@@ -24,44 +24,19 @@ export const getMlHealth = async (req, res)=>{
             error: error.message,
         });
     }
-}
+};
 
-// export const predictPrice = async (req, res)=>{
-//     try {
-//         const response = await fetch(`${ML_API_URL}/predict`, {
-//             method: "POST",
-//             headers: {"Content-Type": "application/json"},
-//             body: JSON.stringify(req.body),
-//         });
-//         const data = await response.json();
-
-//         if(!response.ok){
-//             return res.status(response.status).json({
-//                 success: false,
-//                 message: data.detail || "ML prediction failed",
-//             });
-//         }
-
-//         res.json(data);
-//     } catch (error) {
-//         res.status(503).json({
-//             success: false,
-//             message: "ML backend is not reachable",
-//             error: error.message,
-//         });
-//     }
-// }
-export const predictPrice = async (req, res)=>{
+export const predictPrice = async (req, res) => {
     try {
         const response = await fetch(`${getMlApiUrl()}/predict`, {
             method: "POST",
-            headers: {"Content-Type": "application/json"},
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(req.body),
         });
 
         const data = await response.json();
 
-        if(!response.ok){
+        if (!response.ok) {
             return res.status(response.status).json({
                 success: false,
                 message: data.detail || "ML prediction failed",
@@ -71,7 +46,14 @@ export const predictPrice = async (req, res)=>{
         return res.json({
             success: true,
             predictedPrice: data.predictedPrice,
-            source: "ML",   // ✅ IMPORTANT
+            priceRange: data.priceRange,
+            valuationGrade: data.valuationGrade,
+            dealDelta: data.dealDelta,
+            confidenceScore: data.confidenceScore,
+            source: data.source || "ML",
+            modelUsed: data.modelUsed,
+            breakdown: data.breakdown,
+            metrics: data.metrics,
         });
 
     } catch (error) {
@@ -81,4 +63,4 @@ export const predictPrice = async (req, res)=>{
             error: error.message,
         });
     }
-}
+};

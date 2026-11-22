@@ -1,200 +1,16 @@
-// import Stripe from "stripe";
-// import mongoose from "mongoose";
-// import Car from "../models/Car.js";
-// import Booking from "../models/Booking.js";
-// import { sendEmail } from "../configs/sendEmail.js";
-
-// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-//   apiVersion: "2022-11-15",
-// });
-
-
-// // ==============================
-// // ✅ CREATE CHECKOUT SESSION
-// // ==============================
-// export const createCheckoutSession = async (req, res) => {
-//   try {
-//     const { _id, email } = req.user;
-//     const { carId } = req.body;
-
-//     // ✅ Validate carId
-//     if (!mongoose.Types.ObjectId.isValid(carId)) {
-//       return res.json({ success: false, message: "Invalid Car ID" });
-//     }
-
-//     // ✅ Find car
-//     const car = await Car.findById(carId);
-
-//     if (!car) {
-//       return res.json({ success: false, message: "Car not found" });
-//     }
-
-//     // ❌ Prevent buying sold car
-//     if (car.isSold) {
-//       return res.json({ success: false, message: "Car already sold" });
-//     }
-
-//     // ❌ Prevent buying hidden car (optional but good)
-//     if (!car.isAvailable) {
-//       return res.json({ success: false, message: "Car is not available" });
-//     }
-
-//     // ✅ Create Stripe session
-//     const session = await stripe.checkout.sessions.create({
-//       payment_method_types: ["card"],
-//       mode: "payment",
-
-//       line_items: [
-//         {
-//           price_data: {
-//             currency: "inr",
-//             product_data: {
-//               name: `${car.brand} ${car.model}`,
-//               description: car.description,
-//             },
-//             unit_amount: Math.round(car.price * 100),
-//           },
-//           quantity: 1,
-//         },
-//       ],
-
-//       customer_email: email,
-
-//       metadata: {
-//         carId: car._id.toString(),
-//         userId: _id.toString(),
-//       },
-
-//       success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-//       cancel_url: `${process.env.CLIENT_URL}/car-details/${carId}`,
-//     });
-
-//     if (!session.url) {
-//       throw new Error("Stripe session creation failed");
-//     }
-
-//     res.json({ success: true, url: session.url });
-
-//   } catch (error) {
-//     console.log("Create Session Error:", error);
-//     res.json({ success: false, message: error.message });
-//   }
-// };
-
-
-
-// // ==============================
-// // ✅ COMPLETE PAYMENT
-// // ==============================
-// export const completePayment = async (req, res) => {
-//   try {
-//     const { sessionId } = req.body;
-//     const { _id } = req.user;
-
-//     if (!sessionId) {
-//       return res.json({
-//         success: false,
-//         message: "Session ID is required",
-//       });
-//     }
-
-//     // ✅ Retrieve session from Stripe
-//     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-//       expand: ["payment_intent"],
-//     });
-
-//     if (!session || session.payment_status !== "paid") {
-//       return res.json({
-//         success: false,
-//         message: "Payment not completed",
-//       });
-//     }
-
-//     const carId = session.metadata?.carId;
-
-//     if (!mongoose.Types.ObjectId.isValid(carId)) {
-//       return res.json({
-//         success: false,
-//         message: "Invalid car in metadata",
-//       });
-//     }
-
-//     // ✅ Extract paymentIntent ID safely
-//     const paymentIntentId =
-//       typeof session.payment_intent === "string"
-//         ? session.payment_intent
-//         : session.payment_intent.id;
-
-//     // ✅ Prevent duplicate booking
-//     const existingBooking = await Booking.findOne({
-//       paymentIntentId: paymentIntentId,
-//     });
-
-//     if (existingBooking) {
-//       return res.json({
-//         success: true,
-//         message: "Already processed",
-//       });
-//     }
-
-//     // ✅ Get car
-//     const car = await Car.findById(carId);
-
-//     if (!car) {
-//       return res.json({
-//         success: false,
-//         message: "Car not found",
-//       });
-//     }
-
-//     // ❌ Prevent double purchase
-//     if (car.isSold) {
-//       return res.json({
-//         success: false,
-//         message: "Car already sold",
-//       });
-//     }
-
-//     // ✅ Mark as SOLD (ONLY HERE)
-//     await Car.findByIdAndUpdate(carId, {
-//       isSold: true,
-//     });
-
-//     // ✅ Save booking
-//     const price = Math.round(session.amount_total / 100);
-
-//     await Booking.create({
-//       car: car._id,
-//       owner: car.owner,
-//       user: _id,
-//       price,
-//       offerPrice: price,
-//       status: "accepted",
-//       paymentIntentId: paymentIntentId,
-//       paymentStatus: session.payment_status,
-//       contactPhone: session.customer_details?.phone || "N/A",
-//       message: "Purchased via Stripe",
-//     });
-
-//     res.json({
-//       success: true,
-//       message: "Payment successful & car marked as sold",
-//     });
-
-//   } catch (error) {
-//     console.log("Complete Payment Error:", error);
-//     res.json({ success: false, message: error.message });
-//   }
-// };
 import Stripe from "stripe";
 import mongoose from "mongoose";
 import Car from "../models/Car.js";
 import Booking from "../models/Booking.js";
 import { sendEmail } from "../configs/sendEmail.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2022-11-15",
-});
+const getStripeInstance = () => {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) return null;
+  return new Stripe(secretKey, {
+    apiVersion: "2022-11-15",
+  });
+};
 
 // ==============================
 // ✅ CREATE CHECKOUT SESSION
@@ -205,60 +21,65 @@ export const createCheckoutSession = async (req, res) => {
     const { carId } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(carId)) {
-      return res.json({ success: false, message: "Invalid Car ID" });
+      return res.status(400).json({ success: false, message: "Invalid Car ID" });
     }
 
     const car = await Car.findById(carId);
 
     if (!car) {
-      return res.json({ success: false, message: "Car not found" });
+      return res.status(404).json({ success: false, message: "Car not found" });
     }
 
     if (car.isSold) {
-      return res.json({ success: false, message: "Car already sold" });
+      return res.status(400).json({ success: false, message: "Car is already sold" });
     }
 
     if (!car.isAvailable) {
-      return res.json({ success: false, message: "Car is not available" });
+      return res.status(400).json({ success: false, message: "Car is not available" });
     }
+
+    const stripe = getStripeInstance();
+    if (!stripe) {
+      return res.status(500).json({
+        success: false,
+        message: "Stripe payment service is not configured",
+      });
+    }
+
+    const currency = (process.env.PAYMENT_CURRENCY || "usd").toLowerCase();
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
-
       line_items: [
         {
           price_data: {
-            currency: "inr",
+            currency,
             product_data: {
-              name: `${car.brand} ${car.model}`,
-              description: car.description,
+              name: `${car.brand} ${car.model} (${car.year})`,
+              description: car.description || `${car.category} in ${car.condition} condition`,
             },
             unit_amount: Math.round(car.price * 100),
           },
           quantity: 1,
         },
       ],
-
       customer_email: email,
-
       metadata: {
         carId: car._id.toString(),
         userId: _id.toString(),
       },
-
-      success_url: `${process.env.CLIENT_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL}/car-details/${carId}`,
+      success_url: `${clientUrl}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${clientUrl}/car-details/${carId}`,
     });
 
     res.json({ success: true, url: session.url });
-
   } catch (error) {
-    console.log("Create Session Error:", error);
-    res.json({ success: false, message: error.message });
+    console.error("Create Session Error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
-
 
 // ==============================
 // ✅ COMPLETE PAYMENT
@@ -269,7 +90,12 @@ export const completePayment = async (req, res) => {
     const { _id, email } = req.user;
 
     if (!sessionId) {
-      return res.json({ success: false, message: "Session ID is required" });
+      return res.status(400).json({ success: false, message: "Session ID is required" });
+    }
+
+    const stripe = getStripeInstance();
+    if (!stripe) {
+      return res.status(500).json({ success: false, message: "Stripe service is not configured" });
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
@@ -277,42 +103,41 @@ export const completePayment = async (req, res) => {
     });
 
     if (!session || session.payment_status !== "paid") {
-      return res.json({ success: false, message: "Payment not completed" });
+      return res.status(400).json({ success: false, message: "Payment was not completed" });
     }
 
     const carId = session.metadata?.carId;
-
     if (!mongoose.Types.ObjectId.isValid(carId)) {
-      return res.json({ success: false, message: "Invalid car in metadata" });
+      return res.status(400).json({ success: false, message: "Invalid car metadata in session" });
     }
 
     const paymentIntentId =
       typeof session.payment_intent === "string"
         ? session.payment_intent
-        : session.payment_intent.id;
+        : session.payment_intent?.id;
 
-    // prevent duplicate
+    // Prevent duplicate booking entry
     const existingBooking = await Booking.findOne({ paymentIntentId });
-
     if (existingBooking) {
-      return res.json({ success: true, message: "Already processed" });
+      return res.json({ success: true, message: "Payment already processed" });
     }
 
     const car = await Car.findById(carId);
-
     if (!car) {
-      return res.json({ success: false, message: "Car not found" });
+      return res.status(404).json({ success: false, message: "Car not found" });
     }
 
     if (car.isSold) {
-      return res.json({ success: false, message: "Car already sold" });
+      return res.json({ success: true, message: "Car is already marked as sold" });
     }
 
-    // ✅ MARK SOLD
+    // Mark car as sold and unavailable
     car.isSold = true;
+    car.isAvailable = false;
     await car.save();
 
     const price = Math.round(session.amount_total / 100);
+    const currency = (session.currency || process.env.PAYMENT_CURRENCY || "usd").toUpperCase();
 
     await Booking.create({
       car: car._id,
@@ -324,31 +149,34 @@ export const completePayment = async (req, res) => {
       paymentIntentId,
       paymentStatus: session.payment_status,
       contactPhone: session.customer_details?.phone || "N/A",
-      message: "Purchased via Stripe",
+      message: "Purchased securely via Stripe",
     });
 
-    // ==============================
-    // 📧 SEND PAYMENT EMAIL
-    // ==============================
-    await sendEmail({
-      to: email,
-      subject: "Payment Successful 🎉",
-      html: `
-        <h2>Payment Confirmed</h2>
-        <p>Your purchase was successful.</p>
-        <p><strong>Car:</strong> ${car.brand} ${car.model}</p>
-        <p><strong>Price:</strong> ₹${price}</p>
-        <p>Thank you for using Car Resale 🚗</p>
-      `,
-    });
+    // Send confirmation receipt email
+    try {
+      await sendEmail({
+        to: email,
+        subject: "Payment Confirmed - Car Purchase Successful 🎉",
+        html: `
+          <h2>Payment Confirmed</h2>
+          <p>Your vehicle purchase was completed successfully.</p>
+          <p><strong>Vehicle:</strong> ${car.brand} ${car.model} (${car.year})</p>
+          <p><strong>Amount Paid:</strong> ${currency} ${price.toLocaleString()}</p>
+          <p><strong>Transaction ID:</strong> ${paymentIntentId || session.id}</p>
+          <br/>
+          <p>Thank you for choosing Car Resale.</p>
+        `,
+      });
+    } catch (mailErr) {
+      console.warn("Payment email receipt failed:", mailErr.message);
+    }
 
     res.json({
       success: true,
-      message: "Payment successful & car marked as sold",
+      message: "Payment verified successfully. Car marked as sold.",
     });
-
   } catch (error) {
-    console.log("Complete Payment Error:", error);
-    res.json({ success: false, message: error.message });
+    console.error("Complete Payment Error:", error.message);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

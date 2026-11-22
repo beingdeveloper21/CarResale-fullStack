@@ -1,23 +1,49 @@
+import fs from "fs";
+import path from "path";
 import imagekit from "../configs/imageKit.js";
 import Booking from "../models/Booking.js";
 import Car from "../models/Car.js";
 import User from "../models/User.js";
 
-const uploadBufferToImageKit = async (file, folder, transformation = []) => {
+const uploadImageSafely = async (file, folder = "/cars", transformation = []) => {
   if (!file?.buffer) {
     throw new Error("Image is required");
   }
 
-  const uploaded = await imagekit.upload({
-    file: file.buffer,
-    fileName: file.originalname,
-    folder,
-  });
+  const hasImageKit =
+    Boolean(process.env.IMAGEKIT_PUBLIC_KEY) &&
+    Boolean(process.env.IMAGEKIT_PRIVATE_KEY) &&
+    Boolean(process.env.IMAGEKIT_URL_ENDPOINT) &&
+    !process.env.IMAGEKIT_PUBLIC_KEY.includes("your_imagekit");
 
-  return imagekit.url({
-    path: uploaded.filePath,
-    transformation,
-  });
+  if (hasImageKit) {
+    try {
+      const uploaded = await imagekit.upload({
+        file: file.buffer,
+        fileName: file.originalname || `upload-${Date.now()}.webp`,
+        folder,
+      });
+
+      return imagekit.url({
+        path: uploaded.filePath,
+        transformation,
+      });
+    } catch (err) {
+      console.warn("ImageKit upload error, falling back to local file storage:", err.message);
+    }
+  }
+
+  // Local filesystem fallback
+  const uploadsDir = path.resolve("uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const cleanFilename = `${Date.now()}-${(file.originalname || "image.jpg").replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+  const targetPath = path.join(uploadsDir, cleanFilename);
+  fs.writeFileSync(targetPath, file.buffer);
+
+  return `/uploads/${cleanFilename}`;
 };
 
 export const changeRoleToOwner = async (req, res) => {
@@ -54,7 +80,7 @@ export const addCar = async (req, res) => {
       });
     }
 
-    const imageUrl = await uploadBufferToImageKit(imageFile, "/cars", [
+    const imageUrl = await uploadImageSafely(imageFile, "/cars", [
       { width: "1280" },
       { quality: "auto" },
       { format: "webp" },
@@ -185,7 +211,7 @@ export const updateUserImage = async (req, res) => {
       });
     }
 
-    const imageUrl = await uploadBufferToImageKit(imageFile, "/users", [
+    const imageUrl = await uploadImageSafely(imageFile, "/users", [
       { width: "400" },
     ]);
 

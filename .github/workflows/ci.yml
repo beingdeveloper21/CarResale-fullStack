@@ -1,0 +1,111 @@
+name: Production CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  client-build-and-lint:
+    name: Client Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Vite Production Build
+        run: npm run build
+
+  server-syntax-check:
+    name: Server Syntax & Validation
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./server
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: npm ci
+
+      - name: Validate syntax
+        run: node -c server.js
+
+  ml-backend-test:
+    name: ML Backend & Inference Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ml_backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt httpx
+
+      - name: Test FastAPI app initialization & health
+        run: |
+          python -c "
+          from fastapi.testclient import TestClient
+          from app import app
+
+          client = TestClient(app)
+          r_health = client.get('/health')
+          assert r_health.status_code == 200, f'Expected 200, got {r_health.status_code}'
+          data = r_health.json()
+          print('Health Check Status:', data)
+          assert data.get('success') is True
+
+          sample_car = {
+            'brand': 'toyota',
+            'model': 'camry',
+            'year': 2021,
+            'mileage': 35000,
+            'condition': 'excellent',
+            'fuel': 'gas',
+            'transmission': 'automatic',
+            'type': 'sedan'
+          }
+          r_pred = client.post('/predict', json=sample_car)
+          assert r_pred.status_code == 200, f'Expected 200, got {r_pred.status_code}'
+          pred_data = r_pred.json()
+          print('Inference Response:', pred_data)
+          assert pred_data.get('success') is True
+          assert pred_data.get('predictedPrice') > 0
+          print('All ML CI verification tests passed!')
+          "

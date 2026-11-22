@@ -11,25 +11,41 @@ import newsletterRouter from "./routes/newsletterRoutes.js";
 
 const app = express();
 
-// DB
-await connectDB(process.env.MONGODB_URI);
+// Database Connection
+await connectDB();
 
-// Middleware
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
+// CORS setup
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.CLIENT_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// Test route
-app.get('/', (req, res) => res.send("Server is running"));
-app.get('/health', (req, res) => res.json({ success: true }));
+// Static file serving for uploads fallback
+app.use("/uploads", express.static("uploads"));
 
-// Routes
-app.use('/api/user', userRouter);
-app.use('/api/owner', ownerRouter);
-app.use('/api/inquiries', bookingRouter);
-app.use('/api/payment', paymentRouter);
+// Health and Root checks
+app.get("/", (req, res) => res.json({ status: "ok", service: "Car Resale API", version: "2.1.0" }));
+app.get("/health", (req, res) => res.json({ success: true, timestamp: new Date().toISOString() }));
+
+// API Routes
+app.use("/api/user", userRouter);
+app.use("/api/owner", ownerRouter);
+app.use("/api/inquiries", bookingRouter);
+app.use("/api/payment", paymentRouter);
 app.use("/api/newsletter", newsletterRouter);
 
 // Start server

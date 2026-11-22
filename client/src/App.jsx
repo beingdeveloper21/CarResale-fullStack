@@ -6,6 +6,7 @@ import CarDetails from './pages/CarDetails'
 import Cars from './pages/Cars'
 import MyBookings from './pages/MyBookings'
 import PaymentSuccess from './pages/PaymentSuccess'
+import ValuationCalculator from './pages/ValuationCalculator'
 import Footer from './components/Footer'
 import Layout from './pages/owner/Layout'
 import Dashboard from './pages/owner/Dashboard'
@@ -16,32 +17,31 @@ import { Toaster } from 'react-hot-toast'
 import { useAppContext } from './context/AppContext'
 
 const App = () => {
-
-  const {showLogin} = useAppContext()
+  const { showLogin } = useAppContext()
   const isOwnerPath = useLocation().pathname.startsWith('/owner')
 
   return (
     <>
-     <Toaster />
-      {showLogin && <Login/>}
+      <Toaster />
+      {showLogin && <Login />}
 
-      {!isOwnerPath && <Navbar/>}
+      {!isOwnerPath && <Navbar />}
 
-    <Routes>
-      <Route path='/' element={<Home/>}/>
-      <Route path='/car-details/:id' element={<CarDetails/>}/>
-      <Route path='/cars' element={<Cars/>}/>
-      <Route path='/payment-success' element={<PaymentSuccess/>}/>
-      <Route path='/owner' element={<Layout />}>
-        <Route index element={<Dashboard />}/>
-        <Route path="add-car" element={<AddCar />}/>
-        <Route path="manage-cars" element={<ManageCars />}/>
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/car-details/:id' element={<CarDetails />} />
+        <Route path='/cars' element={<Cars />} />
+        <Route path='/valuation' element={<ValuationCalculator />} />
+        <Route path='/my-bookings' element={<MyBookings />} />
+        <Route path='/payment-success' element={<PaymentSuccess />} />
+        <Route path='/owner' element={<Layout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="add-car" element={<AddCar />} />
+          <Route path="manage-cars" element={<ManageCars />} />
+        </Route>
+      </Routes>
 
-      </Route>
-    </Routes>
-
-    {!isOwnerPath && <Footer />}
-    
+      {!isOwnerPath && <Footer />}
     </>
   )
 }
